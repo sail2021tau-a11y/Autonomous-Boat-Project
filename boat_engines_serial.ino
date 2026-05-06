@@ -1,56 +1,64 @@
 #include <Arduino.h>
+#include <Servo.h> 
 
-// Define PWM pins for the three engines
-const int LEFT_ENGINE_PIN = 9;   
-const int RIGHT_ENGINE_PIN = 10; 
-const int CENTER_ENGINE_PIN = 11;
+Servo leftEngine;
+Servo rightEngine;
+Servo backEngine; // Matching the KiCad schematic naming (BACK ESC)
+
+const int LEFT_ENGINE_PIN = 9;   // Verified working (Left Thruster)
+const int RIGHT_ENGINE_PIN = 10; // Verified working (Right Thruster)
+const int BACK_ENGINE_PIN = 8;   // FIXED: Changed from 11 to 8 based on KiCad Schematic
+
+// Safety Cap for bench testing (0 to 100 percentage)
+const int MAX_TEST_POWER = 15; 
 
 void setup() {
-  // Initialize serial communication to match the Jetson's BAUD_RATE
   Serial.begin(9600); 
   
-  // Set engine pins as outputs
-  pinMode(LEFT_ENGINE_PIN, OUTPUT);
-  pinMode(RIGHT_ENGINE_PIN, OUTPUT);
-  pinMode(CENTER_ENGINE_PIN, OUTPUT);
+  leftEngine.attach(LEFT_ENGINE_PIN);
+  rightEngine.attach(RIGHT_ENGINE_PIN);
+  backEngine.attach(BACK_ENGINE_PIN);
   
-  // Start with engines powered off (PWM = 0)
-  analogWrite(LEFT_ENGINE_PIN, 0);
-  analogWrite(RIGHT_ENGINE_PIN, 0);
-  analogWrite(CENTER_ENGINE_PIN, 0);
+  // ESC Arming Sequence
+  // Sending neutral signal (1500us) to all ESCs to unlock them safely
+  leftEngine.writeMicroseconds(1500);
+  rightEngine.writeMicroseconds(1500);
+  backEngine.writeMicroseconds(1500);
   
-  // Print ready message to the Serial Monitor
-  Serial.println("Arduino ready - Send command in format l<val>,r<val>,f<val>");
+  Serial.println("ESCs Arming Sequence started... Please wait 3 seconds.");
+  delay(3000); 
+  
+  Serial.println("Arduino ready - SCHEMATIC PINS ACTIVE (9, 10, 8) - Safe Cap 15%");
 }
 
 void loop() {
-  // Check if data is available to read from the Jetson
   if (Serial.available() > 0) {
-    // Read the incoming string until a newline character is received
     String command = Serial.readStringUntil('\n');
-    command.trim(); // Remove any leading/trailing whitespace
+    command.trim(); 
     
     int left_power = 0, right_power = 0, forward_power = 0;
     
-    // Parse the string formatted as "l50,r30,f10"
+    // Parsing command format: l<val>,r<val>,f<val>
     if (sscanf(command.c_str(), "l%d,r%d,f%d", &left_power, &right_power, &forward_power) == 3) {
       
-      // Map the percentage power (-100 to 100) to Arduino PWM output (0 to 255)
-      // Constrain is used to prevent values exceeding limits
-      int left_pwm = map(constrain(left_power, -100, 100), 0, 100, 0, 255);
-      int right_pwm = map(constrain(right_power, -100, 100), 0, 100, 0, 255);
-      int forward_pwm = map(constrain(forward_power, -100, 100), 0, 100, 0, 255);
+      // Enforce safety cap
+      left_power = constrain(left_power, 0, MAX_TEST_POWER);
+      right_power = constrain(right_power, 0, MAX_TEST_POWER);
+      forward_power = constrain(forward_power, 0, MAX_TEST_POWER);
       
-      // Apply the calculated PWM signals to the corresponding engine pins
-      // The abs() function ensures the PWM value is positive
-      analogWrite(LEFT_ENGINE_PIN, abs(left_pwm));
-      analogWrite(RIGHT_ENGINE_PIN, abs(right_pwm));
-      analogWrite(CENTER_ENGINE_PIN, abs(forward_pwm));
+      // Map percentage (0 to 100) to standard ESC pulse widths (1500us to 2000us)
+      int left_us = map(left_power, 0, 100, 1500, 2000);      
+      int right_us = map(right_power, 0, 100, 1500, 2000);    
+      int back_us = map(forward_power, 0, 100, 1500, 2000); 
       
-      // Send a confirmation back to the Jetson
-      Serial.println("Received: " + command + " -> Motors updated.");
+      // Write signals to the actual pins
+      leftEngine.writeMicroseconds(left_us);
+      rightEngine.writeMicroseconds(right_us);
+      backEngine.writeMicroseconds(back_us);
+      
+      Serial.print("Received: " + command);
+      Serial.println(" -> Signals sent to Pins 9, 10 and 8.");
     } else {
-      // Handle incorrectly formatted commands
       Serial.println("Error: Invalid command format.");
     }
   }
