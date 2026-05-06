@@ -2,13 +2,13 @@
 
 This subdirectory contains the official Arduino Nano firmware (`boat_engines_serial.ino`) responsible for translating high-level directional directives from the NVIDIA Jetson (ROS 2 environment) into physical motor movement.
 
-## 🛠️ Hardware Architecture & Pin Mapping
+## Hardware Architecture & Pin Mapping
 Based on meticulous validation against the final KiCad electrical schematic, the electronic speed controllers (ESCs) are routed to the following hardware PWM pins on the Arduino Nano:
 * **Left Thruster (ESC 1):** `Pin 9` (PWM)
 * **Right Thruster (ESC 2):** `Pin 10` (PWM)
 * **Back Thruster (ESC 3):** `Pin 8` (PWM) — *Fixed from previous software misconfigurations routing to Pin 11.*
 
-## 🚀 Key Functional Features
+## Key Functional Features
 
 ### 1. ESC Arming Sequence (Safety First)
 Electronic Speed Controllers feature hardware-level safety initialization routines to avoid accidental bench-testing injuries. Upon boot/reset, the firmware triggers a **3-second arming delay**, continuous feeding a neutral signal of `1500 microseconds` to all channels. This safely commands zero-throttle, allowing the ESCs to boot, self-calibrate, and unlock propulsion lines.
