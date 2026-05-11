@@ -1,3 +1,6 @@
+### This hardware validation branch was developed to execute tests and verify the hardware team's deliverables at December 2025.
+### Written by the Tal & Tal software team.
+
 # Autonomous Boat Control System
 
 This project implements a hybrid control and navigation system for an autonomous surface vessel. It uses a **Master-Slave architecture** combined with a manual **RC Override**:
