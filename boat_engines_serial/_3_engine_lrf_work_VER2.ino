@@ -72,9 +72,9 @@ int extractValue(String data, String label) {
 }
 
 void setThrusters(int valL, int valR, int valF) {
-  int pwmL = map(valL, -100, 100, 1300, 1700);
-  int pwmR = map(valR, -100, 100, 1300, 1700);
-  int pwmF = map(valF, -100, 100, 1300, 1700);
+  int pwmL = map(valL, -100, 100, 1430, 1570);
+  int pwmR = map(valR, -100, 100, 1430, 1570);
+  int pwmF = map(valF, -100, 100, 1430, 1570);
 
   escLeft.writeMicroseconds(pwmL);
   escRight.writeMicroseconds(pwmR);
