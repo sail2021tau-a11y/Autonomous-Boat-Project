@@ -33,6 +33,12 @@ class EngineController(Node):
 
     def listener_callback(self, msg):
         print(f"Recieved:{msg.data}")
+        
+        # Intercept explicit stop command from kill scripts
+        if msg.data.strip().lower() == 'stop':
+            self.send_command(0, 0, 0)
+            return
+        
         try:
             angle = float(msg.data)
         except ValueError:
