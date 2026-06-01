@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sail-IL 2025 - Live Navigation</title>
+
+    <!-- פונט נקי וקליל -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* רקע קבוע, צבעים עמוקים */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            background-color: #0a1128;
+            color: white;
+            text-align: center;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #0d2960;
+            padding: 25px 0;
+            font-size: 40px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+            animation: fadeInDown 1s ease;
+        }
+
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translateY(-30px);}
+            100% { opacity: 1; transform: translateY(0);}
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 20px;
+            font-weight: 600;
+            border: 2px solid #4CAF50;
+            border-radius: 30px;
+            display: inline-block;
+            background: rgba(76, 175, 80, 0.2);
+            animation: pulse 2.5s infinite;
+            box-shadow: 0 0 8px #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1);}
+            50% { transform: scale(1.05);}
+            100% { transform: scale(1);}
+        }
+
+        .main-content {
+            margin-top: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+
+        .stream-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #61dafb;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            width: 640px;
+            max-width: 90%;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 1s ease;
+        }
+
+        .stream-box.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .stream-box:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(97, 218, 251, 0.5);
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 28px;
+            font-weight: 700;
+            color: #61dafb;
+            text-shadow: 1px 1px 5px rgba(97, 218, 251, 0.6);
+        }
+
+        img {
+            width: 100%;
+            height: auto;
+            max-height: 480px;
+            border-radius: 15px;
+            border: 2px solid #61dafb;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        img:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 20px #61dafb;
+        }
+
+        @media (max-width: 1300px) {
+            .main-content {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>⛵ Sail-IL 2025 ⛵</header>
+
+<div class="status" id="serverStatus">🟢 Server Status: Running</div>
+
+<div class="main-content">
+    <div class="stream-box" id="guiStreamBox">
+        <h2>🎥 Live GUI Stream</h2>
+        <img id="guiStream" src="/video" alt="Live PyQt Stream">
+    </div>
+
+    <div class="stream-box" id="zedStreamBox">
+        <h2>🎥 ZED Camera View</h2>
+        <img id="zedStream" src="/zed" alt="ZED Live Stream">
+    </div>
+</div>
+
+<!-- JavaScript לבדוק שרת ולהפעיל הופעה רכה -->
+<script>
+    async function checkServerStatus() {
+        try {
+            const response = await fetch('/ping', { method: 'GET', cache: 'no-store' });
+            if (response.ok) {
+                document.getElementById('serverStatus').innerHTML = '🟢 Server Status: Running';
+                document.getElementById('serverStatus').style.borderColor = '#4CAF50';
+                document.getElementById('serverStatus').style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+                document.getElementById('serverStatus').style.boxShadow = '0 0 8px #4CAF50';
+            } else {
+                throw new Error();
+            }
+        } catch (error) {
+            document.getElementById('serverStatus').innerHTML = '🔴 Server Status: Not Running';
+            document.getElementById('serverStatus').style.borderColor = '#f44336';
+            document.getElementById('serverStatus').style.backgroundColor = 'rgba(244, 67, 54, 0.2)';
+            document.getElementById('serverStatus').style.boxShadow = '0 0 8px #f44336';
+        }
+    }
+
+    function revealStream(id) {
+        const box = document.getElementById(id);
+        if (box) {
+            box.classList.add('revealed');
+        }
+    }
+
+    document.getElementById('guiStream').addEventListener('load', () => {
+        revealStream('guiStreamBox');
+    });
+
+    document.getElementById('zedStream').addEventListener('load', () => {
+        revealStream('zedStreamBox');
+    });
+
+    setInterval(checkServerStatus, 3000);
+</script>
+
+</body>
+</html>
+
