@@ -8,6 +8,7 @@ import time
 class EngineController(Node):
     def __init__(self):
         super().__init__('engine_controller')
+        self.ignore_until = 0.0  # Added for stop immunity
         self.subscription = self.create_subscription(
             String,
             'steering_directions',
@@ -29,14 +30,20 @@ class EngineController(Node):
                 break
         self.get_logger().info('Arduino ready')
         # Send initial stop command
-        #self.send_command(0, 0, 0)
+        self.send_command(0, 0, 0)
 
     def listener_callback(self, msg):
+        # If we are in the immunity period, ignore incoming messages completely
+        if time.time() < self.ignore_until:
+            return
+            
         print(f"Recieved:{msg.data}")
         
         # Intercept explicit stop command from kill scripts
         if msg.data.strip().lower() == 'stop':
             self.send_command(0, 0, 0)
+            # Ignore all other commands for 3 seconds to let the bash script kill the task safely
+            self.ignore_until = time.time() + 3.0
             return
         
         try:
@@ -90,7 +97,7 @@ def main(args=None):
     print("engines script started")
     rclpy.init(args=args)
     engine_controller = EngineController()
-    engine_controller.send_command(50,50,0)
+    engine_controller.send_command(0,0,0)
     try:
         rclpy.spin(engine_controller)
     except KeyboardInterrupt:
