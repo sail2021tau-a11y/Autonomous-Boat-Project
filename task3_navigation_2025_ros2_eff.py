@@ -212,13 +212,27 @@ class Navigator(Node):
         """
         if not self.conf_set:
             with open("/tmp/current_task.txt", "w") as f:
-              f.write("task3")  # שנה ל-task1 או task3 לפי הקובץ
+              f.write("task3")  #Change to task1 or task3 depending on the file
             self.conf_set = True
             
         if not object_positions['end']:
             return
 
         left_bound, right_bound = self.get_bounds()
+        
+        # STOPPING MECHANISM: 1 METER FROM DOCK
+        #Check if the dock is identified and its depth (Z-axis) is 1.0 meter or less
+        if is_valid_point(left_bound) and left_bound[2] <= 1.0:
+            self.get_logger().info("🎯 Docking station reached (1m)! Stopping engines.")
+            say(". Docking station reached. Stopping engines.")
+            
+            # Send explicit stop command to the engine controller
+            self.publish_angle("stop")
+            
+            # Gracefully stop the navigation process
+            self.timer_manager.stop_timer()
+            rclpy.shutdown()
+            return
 
         if is_valid_point(left_bound) and is_valid_point(right_bound):
             angle = get_angle(left_bound, right_bound)
