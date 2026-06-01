@@ -14,13 +14,13 @@ import threading
 # ===========================================
 # GPS Navigation Configuration
 # ===========================================
-ARRIVED_THRESHOLD_METERS = 2.0  # Arrival radius in meters
+ARRIVED_THRESHOLD_METERS = 8.5  # Arrival radius in meters
 SERIAL_PORT = '/dev/ttyACM0'    # GPS serial port as identified in tests
 BAUD_RATE = 9600                # Default baud rate for u-blox
 
 # Target coordinates (Waypoint) - currently set near your tested location
-TARGET_LAT = 32.1090
-TARGET_LON = 34.8060
+TARGET_LAT = 32.108503
+TARGET_LON = 34.805753
 
 class Task4Navigator(Node):
     def __init__(self):
@@ -123,7 +123,7 @@ class Task4Navigator(Node):
             self.get_logger().info("🎯 Waypoint Reached! Stopping engines.")
             self.say(". Destination reached. Stopping engines.")
             msg = String()
-            msg.data = "0"
+            msg.data = "stop"
             self.publisher.publish(msg)
             
             # Gracefully shut down the node
@@ -145,8 +145,9 @@ class Task4Navigator(Node):
         msg.data = f"{round(error_angle)}"
         self.publisher.publish(msg)
         
-        # Log telemetry data
+        # Log telemetry data including real-time raw GPS coordinates
         self.get_logger().info(
+            f"🌐 GPS Pos: ({self.current_lat:.6f}, {self.current_lon:.6f}) | "
             f"Dist: {distance:.1f}m | Tgt Bearing: {target_bearing:.1f}° | "
             f"Mock Hdg: {self.current_heading}° | Error: {msg.data}°"
         )
