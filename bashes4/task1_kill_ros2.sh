@@ -1,6 +1,9 @@
 #!/bin/bash
 echo "Stopping Task 1..."
 
+# Send explicit stop command to the engine controller before killing the node
+timeout 2.0 ros2 topic pub -r 10 /steering_directions std_msgs/msg/String "{data: 'stop'}"
+
 # Closing task 1 processes (ROS2 version)
 pkill -f task1_navigation_2025_ros2_eff.py
 
