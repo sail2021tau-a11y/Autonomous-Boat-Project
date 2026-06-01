@@ -63,7 +63,7 @@ class EngineController(Node):
         forward_power = max(-100, min(100, forward_power))
         print(f"calculated power:{left_power}{right_power}{forward_power}")
 
-        self.send_command(left_power, right_power, forward_power)
+        self.send_command(int(left_power), int(right_power), int(forward_power))
 
     def send_command(self, left, right, forward):
         # Format command as per Arduino expectation
@@ -76,7 +76,7 @@ class EngineController(Node):
     def __del__(self):
         # Ensure serial port is closed on shutdown
         if self.ser.is_open:
-            self.send_command(b'l0,r0,f0')  # Stop engines
+            self.send_command(0,0,0)  # Stop engines
             self.ser.close()
             self.get_logger().info('Serial connection closed')
 
@@ -87,11 +87,10 @@ def main(args=None):
     engine_controller.send_command(50,50,0)
     try:
         rclpy.spin(engine_controller)
-        print(rclpy.spin(engine_controller))
     except KeyboardInterrupt:
         pass
     finally:
-        #engine_controller.send_command(0,0,0)
+        engine_controller.send_command(0,0,0)
         engine_controller.destroy_node()
         rclpy.shutdown()
 
