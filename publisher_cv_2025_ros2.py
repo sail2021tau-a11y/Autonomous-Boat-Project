@@ -121,8 +121,11 @@ class ObjectDetectionNode(Node):
 
             cv2.imshow("Image", frame_cropped)
             try:
-                small_frame = cv2.resize(frame_cropped, (320, 320))
-                cv2.imwrite("/tmp/zed_view.jpg", small_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                # INCREASED RESOLUTION AND QUALITY FOR FLASK DASHBOARD
+                # Resize to 640x640 instead of 320x320 for much better visibility
+                better_frame = cv2.resize(frame_cropped, (640, 640))
+                # Save with 95% JPEG quality instead of 70% to remove blur/artifacts
+                cv2.imwrite("/tmp/zed_view.jpg", better_frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
             except Exception as e:
                 self.get_logger().warn(f"❌ Failed to save zed_view: {e}")
 

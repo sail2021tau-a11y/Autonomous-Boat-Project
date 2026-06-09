@@ -26,7 +26,7 @@ class PyQtMap(Node, QWidget):
         self.center_y = 300
 
         self.last_screenshot_time = time.time()
-        self.screenshot_interval = 0.3
+        self.screenshot_interval = 0.1
 
         self.last_object_time = time.time()
         self.object_timeout = 0.75

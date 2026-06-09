@@ -98,7 +98,7 @@ def generate_frames():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         except Exception as e:
             print("❌ PyQt image not found", e)
-        time.sleep(0.3)
+        time.sleep(0.1)
 
 def generate_frames_zed():
     while True:
@@ -109,7 +109,7 @@ def generate_frames_zed():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         except Exception as e:
             print("❌ ZED image not found:", e)
-        time.sleep(0.3)
+        time.sleep(0.1)
 
 @app.route('/video')
 def video_feed():
