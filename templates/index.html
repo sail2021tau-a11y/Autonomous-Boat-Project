@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Sail-IL 2025 - Live Navigation</title>
 
-    <!-- פונט נקי וקליל -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
@@ -56,8 +55,67 @@
             100% { transform: scale(1);}
         }
 
+        /* ==========================================
+           Telemetry Dashboard Styles
+           ========================================== */
+        .telemetry-dashboard {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 30px auto 10px auto;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+
+        .tel-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #61dafb;
+            border-radius: 15px;
+            padding: 15px 20px;
+            min-width: 160px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tel-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(97, 218, 251, 0.4);
+        }
+
+        .tel-title {
+            font-size: 13px;
+            color: #8892b0;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .tel-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #61dafb;
+            text-shadow: 0 0 5px rgba(97, 218, 251, 0.4);
+        }
+
+        .engine-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            margin-top: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 2px;
+        }
+        .engine-row:last-child {
+            border-bottom: none;
+        }
+        .engine-label {
+            color: #a8b2d1;
+            font-weight: 400;
+        }
+        /* ========================================== */
+
         .main-content {
-            margin-top: 50px;
+            margin-top: 20px;
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -125,6 +183,43 @@
 
 <div class="status" id="serverStatus">🟢 Server Status: Running</div>
 
+<div class="telemetry-dashboard">
+    <div class="tel-card">
+        <div class="tel-title">Task Status</div>
+        <div class="tel-value" id="val-task" style="color: #4CAF50;">Idle</div>
+    </div>
+    
+    <div class="tel-card">
+        <div class="tel-title">Distance to Target</div>
+        <div class="tel-value" id="val-dist">N/A</div>
+    </div>
+    
+    <div class="tel-card">
+        <div class="tel-title">Steering Cmd</div>
+        <div class="tel-value" id="val-steer">0°</div>
+    </div>
+    
+    <div class="tel-card">
+        <div class="tel-title">Engines Power</div>
+        <div class="engine-row">
+            <span class="engine-label">Left (L):</span>
+            <span class="tel-value" style="font-size: 18px;" id="val-eng-l">0</span>
+        </div>
+        <div class="engine-row">
+            <span class="engine-label">Right (R):</span>
+            <span class="tel-value" style="font-size: 18px;" id="val-eng-r">0</span>
+        </div>
+        <div class="engine-row">
+            <span class="engine-label">Forward (F):</span>
+            <span class="tel-value" style="font-size: 18px;" id="val-eng-f">0</span>
+        </div>
+    </div>
+
+    <div class="tel-card">
+        <div class="tel-title">Current GPS</div>
+        <div class="tel-value" id="val-gps" style="font-size: 18px; line-height: 1.5; margin-top: 10px;">0.000000<br>0.000000</div>
+    </div>
+</div>
 <div class="main-content">
     <div class="stream-box" id="guiStreamBox">
         <h2>🎥 Live GUI Stream</h2>
@@ -137,8 +232,8 @@
     </div>
 </div>
 
-<!-- JavaScript לבדוק שרת ולהפעיל הופעה רכה -->
 <script>
+    // 1. Check Server Ping Status
     async function checkServerStatus() {
         try {
             const response = await fetch('/ping', { method: 'GET', cache: 'no-store' });
@@ -158,6 +253,31 @@
         }
     }
 
+    // 2. Fetch and Update Telemetry Data
+    async function updateTelemetry() {
+        try {
+            const response = await fetch('/api/telemetry', { method: 'GET', cache: 'no-store' });
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Update UI elements safely
+                document.getElementById('val-task').innerText = data.task_status;
+                document.getElementById('val-dist').innerText = data.distance !== "N/A" ? data.distance + " m" : "N/A";
+                document.getElementById('val-steer').innerText = data.steering_cmd + "°";
+                document.getElementById('val-eng-l').innerText = data.engines.L;
+                document.getElementById('val-eng-r').innerText = data.engines.R;
+                document.getElementById('val-eng-f').innerText = data.engines.F;
+                
+                // Format GPS nicely
+                if (data.gps.lat !== 0.0 && data.gps.lon !== 0.0) {
+                    document.getElementById('val-gps').innerHTML = `${data.gps.lat.toFixed(6)}<br>${data.gps.lon.toFixed(6)}`;
+                }
+            }
+        } catch (error) {
+            console.warn("Could not fetch telemetry data");
+        }
+    }
+
     function revealStream(id) {
         const box = document.getElementById(id);
         if (box) {
@@ -173,9 +293,12 @@
         revealStream('zedStreamBox');
     });
 
+    // Run health check every 3 seconds
     setInterval(checkServerStatus, 3000);
+    
+    // Run Telemetry update twice a second (2Hz) for smooth real-time HMI feel
+    setInterval(updateTelemetry, 500);
 </script>
 
 </body>
 </html>
-
