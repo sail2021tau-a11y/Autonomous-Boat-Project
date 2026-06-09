@@ -5,6 +5,9 @@ from rclpy.node import Node
 from std_msgs.msg import String
 import serial
 import time 
+import requests
+import threading
+
 class EngineController(Node):
     def __init__(self):
         super().__init__('engine_controller')
@@ -42,6 +45,21 @@ class EngineController(Node):
         # Intercept explicit stop command from kill scripts
         if msg.data.strip().lower() == 'stop':
             self.send_command(0, 0, 0)
+            
+            # === REPORT STOP AND RESET TASK STATUS TO FLASK ===
+            def send_stop_telemetry():
+                try:
+                    requests.post("http://localhost:5000/api/telemetry", json={
+                        "task_status": "Idle (Stopped)",
+                        "distance": "N/A",
+                        "steering_cmd": "Stop",
+                        "engines": {"L": 0, "R": 0, "F": 0}
+                    }, timeout=0.1)
+                except Exception:
+                    pass
+            threading.Thread(target=send_stop_telemetry, daemon=True).start()
+            # ==================================================
+            
             # Ignore all other commands for 3 seconds to let the bash script kill the task safely
             self.ignore_until = time.time() + 3.0
             return
@@ -76,6 +94,21 @@ class EngineController(Node):
         forward_power = max(-100, min(100, forward_power))
         print(f"calculated power:{left_power}{right_power}{forward_power}")
 
+        # ==========================================
+        # Telemetry Update to Flask Dashboard
+        # ==========================================
+        def send_telemetry():
+            try:
+                requests.post("http://localhost:5000/api/telemetry", json={
+                    "steering_cmd": str(round(steering_angle, 1)),
+                    "engines": {"L": int(left_power), "R": int(right_power), "F": int(forward_power)}
+                }, timeout=0.1)
+            except Exception:
+                pass # Ignore connection errors if Flask is not running
+                
+        threading.Thread(target=send_telemetry, daemon=True).start()
+        # ==========================================
+        
         self.send_command(int(left_power), int(right_power), int(forward_power))
 
     def send_command(self, left, right, forward):

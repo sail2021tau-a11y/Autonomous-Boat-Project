@@ -19,6 +19,37 @@ tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False, gpu=False)
 # Keep track of detected object history
 object_history = []
 
+# ==========================================
+# Telemetry State Management
+# ==========================================
+telemetry_state = {
+    "task_status": "Idle",
+    "distance": "N/A",
+    "steering_cmd": "0",
+    "engines": {"L": 0, "R": 0, "F": 0},
+    "gps": {"lat": 0.0, "lon": 0.0}
+}
+
+@app.route('/api/telemetry', methods=['POST'])
+def update_telemetry():
+    """Receives JSON data from ROS2 nodes and updates the global telemetry state."""
+    data = request.json
+    if not data:
+        return jsonify(success=False, error="No data provided")
+        
+    # Update only the keys provided in the request
+    for key in data:
+        if key in telemetry_state:
+            telemetry_state[key] = data[key]
+            
+    return jsonify(success=True)
+
+@app.route('/api/telemetry', methods=['GET'])
+def get_telemetry():
+    """Sends the current telemetry state to the frontend HTML dashboard."""
+    return jsonify(telemetry_state)
+# ==========================================
+
 @app.route('/')
 def index():
     return render_template('index.html')

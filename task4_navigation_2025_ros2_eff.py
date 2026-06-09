@@ -10,6 +10,7 @@ import os
 import subprocess
 import requests
 import threading
+import time
 
 # ===========================================
 # GPS Navigation Configuration
@@ -19,7 +20,7 @@ SERIAL_PORT = '/dev/ttyACM0'    # GPS serial port as identified in tests
 BAUD_RATE = 9600                # Default baud rate for u-blox
 
 # Target coordinates (Waypoint) - currently set near your tested location
-TARGET_LAT = 32.108503
+TARGET_LAT = 32.108509
 TARGET_LON = 34.805753
 
 class Task4Navigator(Node):
@@ -68,23 +69,24 @@ class Task4Navigator(Node):
             self.get_logger().error(f"Invalid mock heading received: {msg.data}")
 
     def read_gps(self):
-        """Continuously reads GPS data from the serial port in the background."""
-        try:
-            with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
-                while self.is_active:
-                    line = ser.readline().decode('ascii', errors='replace').strip()
-                    # Look for NMEA sentences containing coordinates (GNRMC or GNGGA)
-                    if line.startswith('$GNRMC') or line.startswith('$GNGGA'):
-                        try:
-                            msg = pynmea2.parse(line)
-                            # Ensure we have a valid GPS fix
-                            if msg.latitude != 0.0 and msg.longitude != 0.0:
-                                self.current_lat = msg.latitude
-                                self.current_lon = msg.longitude
-                        except pynmea2.ParseError:
-                            pass # Ignore malformed sentences
-        except Exception as e:
-            self.get_logger().error(f"GPS Serial Error: {e}")
+        """Continuously reads GPS data with retry logic for busy ports."""
+        while self.is_active:
+            try:
+                with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
+                    self.get_logger().info("✅ GPS Port opened successfully.")
+                    while self.is_active:
+                        line = ser.readline().decode('ascii', errors='replace').strip()
+                        if line.startswith('$GNRMC') or line.startswith('$GNGGA'):
+                            try:
+                                msg = pynmea2.parse(line)
+                                if msg.latitude != 0.0 and msg.longitude != 0.0:
+                                    self.current_lat = msg.latitude
+                                    self.current_lon = msg.longitude
+                            except pynmea2.ParseError:
+                                pass
+            except Exception as e:
+                self.get_logger().warn(f"GPS Port busy or error: {e}. Retrying in 2 seconds...")
+                time.sleep(2) 
 
     def haversine_distance(self, lat1, lon1, lat2, lon2):
         """Calculates the Euclidean distance in meters between two coordinates."""
@@ -128,6 +130,13 @@ class Task4Navigator(Node):
             
             # Gracefully shut down the node
             self.is_active = False
+            
+            # Report successful stop to dashboard
+            try:
+                requests.post("http://localhost:5000/api/telemetry", json={"task_status": "Task 4 Stopped (Arrived)"}, timeout=0.1)
+            except Exception:
+                pass
+            
             rclpy.shutdown()
             return
 
@@ -140,7 +149,7 @@ class Task4Navigator(Node):
         elif error_angle < -180:
             error_angle += 360
 
-        # 4. Publish steering command for the engine controller
+        # 4. Publish steering command for engine controller
         msg = String()
         msg.data = f"{round(error_angle)}"
         self.publisher.publish(msg)
@@ -151,6 +160,22 @@ class Task4Navigator(Node):
             f"Dist: {distance:.1f}m | Tgt Bearing: {target_bearing:.1f}° | "
             f"Mock Hdg: {self.current_heading}° | Error: {msg.data}°"
         )
+        
+        # ==========================================
+        # Telemetry Update to Flask Dashboard
+        # ==========================================
+        def send_task_telemetry():
+            try:
+                requests.post("http://localhost:5000/api/telemetry", json={
+                    "task_status": "Task 4 (GPS) Active",
+                    "distance": f"{distance:.1f}",
+                    "gps": {"lat": round(self.current_lat, 6), "lon": round(self.current_lon, 6)}
+                }, timeout=0.1)
+            except Exception:
+                pass
+                
+        threading.Thread(target=send_task_telemetry, daemon=True).start()
+        # ==========================================
 
 def main(args=None):
     rclpy.init(args=args)

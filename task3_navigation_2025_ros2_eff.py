@@ -8,6 +8,7 @@ from collections import defaultdict
 import subprocess
 import os
 import requests
+import threading
 
 from cv_from_zed_ros2.msg import ObjectDistanceInfo
 
@@ -260,6 +261,22 @@ class Navigator(Node):
         else:
             self.publish_angle(NAV_TO_ANGLE[NAV_FORWARD])
             self.timer_manager.start_timer(TIMEOUT)
+            
+        # ==========================================
+        # Telemetry Update to Flask Dashboard
+        # ==========================================
+        def send_task_telemetry():
+            current_dist = f"{left_bound[2]:.1f}" if is_valid_point(left_bound) else "N/A"
+            try:
+                requests.post("http://localhost:5000/api/telemetry", json={
+                    "task_status": "Task 3 (Docking) Active",
+                    "distance": current_dist
+                }, timeout=0.1)
+            except Exception:
+                pass
+                
+        threading.Thread(target=send_task_telemetry, daemon=True).start()
+        # ==========================================
 
         object_positions.clear()
 
