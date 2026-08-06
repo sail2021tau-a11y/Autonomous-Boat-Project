@@ -2,8 +2,6 @@
  * Sail-IL Autonomous Boat - Hardware V2 (Refurbished)
  * Compatible with Arduino Nano (Standard)
  * Pinout updated per KiCad Schematic
- *
- * CHANGES vs. original branch version:
  * - updateMotorsSmoothly() ramps the ESC/servo outputs toward
  *   commanded targets.
  * - setTargetSpeeds() sets the *targets* instead of writing to the ESCs
