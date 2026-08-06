@@ -2,6 +2,14 @@
  * Sail-IL Autonomous Boat - Hardware V2 (Refurbished)
  * Compatible with Arduino Nano (Standard)
  * Pinout updated per KiCad Schematic
+ *
+ * CHANGES vs. original branch version:
+ * - updateMotorsSmoothly() ramps the ESC/servo outputs toward
+ *   commanded targets.
+ * - setTargetSpeeds() sets the *targets* instead of writing to the ESCs
+ *   directly, so every command goes through the ramp.
+ * - stopAll() still writes STOP_PWM immediately and resets the targets too,
+ *   so an emergency stop is never delayed by the ramp.
  */
 
 #include <Servo.h>
@@ -21,10 +29,15 @@ const int SAFE_AUTO_FWD = 1650; // Increased safety (not 100% immediately)
 const int SAFE_AUTO_REV = 1350;
 const int RAMP_STEP = 5;        // How fast to ramp speed (lower = smoother)
 
-// --- State Variables ---
+// --- Current Output State (what's actually being sent to the ESCs) ---
 int currentLeftPWM = STOP_PWM;
 int currentRightPWM = STOP_PWM;
 int currentBackPWM = STOP_PWM;
+
+// --- Target State (what setTargetSpeeds() wants us to reach) ---
+int targetLeftPWM = STOP_PWM;
+int targetRightPWM = STOP_PWM;
+int targetBackPWM = STOP_PWM;
 
 Servo escLeft, escRight, escBack, steeringServo;
 
@@ -41,14 +54,14 @@ void setup() {
   Serial.println("ESCs Arming... Ensuring propellers are clear.");
   stopAll();
   delay(5000); // 5-second safety delay per hardware report
-  
+
   Serial.println("System Ready - Hardware V2 Profile");
 }
 
 void loop() {
   // Read mode from the single RC wire connected to D2[cite: 2]
   int rcInput = pulseIn(PIN_RC_IN, HIGH);
-  
+
   // Decide Mode: If signal > 1500, go Autonomous.
   // Note: Manual control via D2 requires SBUS library for multi-channel.
   if (rcInput > 1500) {
@@ -57,19 +70,35 @@ void loop() {
     // Basic failsafe if mode is manual but no other wires are connected
     stopAll();
   }
-  
+
   // Apply the soft-start ramping to the motors
   updateMotorsSmoothly();
 }
 
 // Function to prevent "bad noises" and motor/battery stress[cite: 1]
+// Moves each ESC's current output one RAMP_STEP closer to its target every
+// call, instead of jumping straight to the commanded speed. Called once per
+// loop() iteration, so the ramp rate in real time depends on the loop
+// period (dominated here by pulseIn()'s read/timeout on PIN_RC_IN).
 void updateMotorsSmoothly() {
-  static int targetLeft = STOP_PWM;
-  static int targetRight = STOP_PWM;
-  static int targetBack = STOP_PWM;
+  currentLeftPWM  = rampToward(currentLeftPWM,  targetLeftPWM,  RAMP_STEP);
+  currentRightPWM = rampToward(currentRightPWM, targetRightPWM, RAMP_STEP);
+  currentBackPWM  = rampToward(currentBackPWM,  targetBackPWM,  RAMP_STEP);
 
-  // We set these targets in the autonomous loop, and this function
-  // slowly inches the current speed toward the target.
+  escLeft.writeMicroseconds(currentLeftPWM);
+  escRight.writeMicroseconds(currentRightPWM);
+  escBack.writeMicroseconds(currentBackPWM);
+}
+
+// Returns `current` moved at most `step` microseconds toward `target`,
+// without ever overshooting past it.
+int rampToward(int current, int target, int step) {
+  if (current < target) {
+    return min(current + step, target);
+  } else if (current > target) {
+    return max(current - step, target);
+  }
+  return current;
 }
 
 void runAutonomousLoop() {
@@ -101,15 +130,25 @@ void runAutonomousLoop() {
 }
 
 void setTargetSpeeds(int l, int r, int b) {
-  // Logic to gradually move current PWM toward these values
-  // In this simplified version, we apply them with a small delay
-  // but a real Ramping function is recommended for high power.
-  escLeft.writeMicroseconds(l);
-  escRight.writeMicroseconds(r);
-  escBack.writeMicroseconds(b);
+  // Set the desired targets only. updateMotorsSmoothly() ramps the actual
+  // ESC output toward these values a few microseconds at a time on every
+  // loop() iteration, instead of jumping straight to the requested speed.
+  targetLeftPWM = l;
+  targetRightPWM = r;
+  targetBackPWM = b;
 }
 
 void stopAll() {
+  // Emergency stop must be immediate — bypass the ramp entirely, and reset
+  // the targets too so updateMotorsSmoothly() doesn't ramp back up on its
+  // own on the next loop() iteration.
+  targetLeftPWM = STOP_PWM;
+  targetRightPWM = STOP_PWM;
+  targetBackPWM = STOP_PWM;
+  currentLeftPWM = STOP_PWM;
+  currentRightPWM = STOP_PWM;
+  currentBackPWM = STOP_PWM;
+
   escLeft.writeMicroseconds(STOP_PWM);
   escRight.writeMicroseconds(STOP_PWM);
   escBack.writeMicroseconds(STOP_PWM);
